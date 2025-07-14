@@ -3,7 +3,7 @@ export class VoiceService {
   private static synthesis: SpeechSynthesis = window.speechSynthesis;
   private static isListening = false;
   private static GEMINI_API_KEY = 'AIzaSyCgeWYSWpTRn89MNgJ-xMQbCKirom2hPxs';
-  private static GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.GEMINI_API_KEY}`;
+  private static GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${this.GEMINI_API_KEY}`;
 
   static initialize() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
