@@ -1,39 +1,177 @@
 export class VoiceService {
+  private static recognition: SpeechRecognition | null = null;
+  private static synthesis: SpeechSynthesis = window.speechSynthesis;
+  private static isListening = false;
+  private static GEMINI_API_KEY = 'AIzaSyCgeWYSWpTRn89MNgJ-xMQbCKirom2hPxs';
+  private static GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.GEMINI_API_KEY}`;
+
+  static initialize() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      this.recognition = new SpeechRecognition();
+      
+      this.recognition.continuous = false;
+      this.recognition.interimResults = false;
+      this.recognition.lang = 'en-US';
+      
+      return true;
+    }
+    return false;
+  }
+
+  static startListening(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!this.recognition) {
+        if (!this.initialize()) {
+          reject(new Error('Speech recognition not supported'));
+          return;
+        }
+      }
+
+      if (this.isListening) {
+        reject(new Error('Already listening'));
+        return;
+      }
+
+      this.isListening = true;
+      
+      this.recognition!.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        this.isListening = false;
+        resolve(transcript);
+      };
+
+      this.recognition!.onerror = (event) => {
+        this.isListening = false;
+        reject(new Error(`Speech recognition error: ${event.error}`));
+      };
+
+      this.recognition!.onend = () => {
+        this.isListening = false;
+      };
+
+      try {
+        this.recognition!.start();
+      } catch (error) {
+        this.isListening = false;
+        reject(error);
+      }
+    });
+  }
+
+  static stopListening() {
+    if (this.recognition && this.isListening) {
+      this.recognition.stop();
+      this.isListening = false;
+    }
+  }
+
   static async processVoiceCommand(command: string): Promise<string> {
-    // Simulate voice processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    try {
+      // Create context about the Walmart Grid Quantum system
+      const systemContext = `
+You are an AI assistant for Walmart Grid Quantum, an advanced hyperlocal logistics intelligence system. You help store managers and logistics coordinators with:
+
+1. Inventory Management - Track stock levels, transfers between stores
+2. Demand Forecasting - Predict product demand using AI
+3. Route Optimization - Optimize delivery routes for efficiency and sustainability
+4. Anomaly Detection - Detect fraud, spoilage, and unusual patterns
+5. Inter-store Negotiations - Facilitate inventory transfers between stores
+6. Eco Metrics - Track carbon footprint and sustainability goals
+
+Current system data context:
+- Stores: Andheri, Bandra, Malad (Mumbai region)
+- Products: Groceries, Electronics, Clothing, Pharmacy items
+- Fleet: Electric vehicles, hybrid vehicles for eco-friendly delivery
+- Real-time monitoring of inventory levels, transfers, and anomalies
+
+Respond as a helpful logistics assistant. Keep responses concise, actionable, and focused on logistics operations. If asked about specific data, provide realistic examples based on the store context.
+
+User command: "${command}"
+`;
+
+      const response = await fetch(this.GEMINI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: systemContext
+            }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 
+                        this.getFallbackResponse(command);
+
+      return aiResponse;
+    } catch (error) {
+      console.error('Error processing voice command:', error);
+      return this.getFallbackResponse(command);
+    }
+  }
+
+  private static getFallbackResponse(command: string): string {
     const lowerCommand = command.toLowerCase();
     
-    if (lowerCommand.includes('biscuits') && lowerCommand.includes('vashi')) {
-      return "Based on current inventory levels, Andheri store has 200 units of biscuits while Bandra store has only 60 units. I recommend transferring 50 units from Andheri to Bandra. The transfer will cost ₹180 and can be completed within 2 hours using our electric vehicle fleet.";
+    if (lowerCommand.includes('inventory')) {
+      return "I can help you check inventory levels across all stores. Which store and product would you like to check?";
     }
     
-    if (lowerCommand.includes('inventory') && lowerCommand.includes('bandra')) {
-      return "Bandra store currently has 290 total inventory items. Critical items include: Bread (40 units - below reorder level), T-Shirt (30 units), and Samsung TV (5 units). I recommend immediate restocking for bread and initiating transfer requests for other items.";
+    if (lowerCommand.includes('transfer') || lowerCommand.includes('send')) {
+      return "I can help you initiate inventory transfers between stores. Which product and stores are involved?";
     }
     
-    if (lowerCommand.includes('carbon') && lowerCommand.includes('footprint')) {
-      return "Today's delivery operations have generated 12.5 kg of CO₂ emissions. Our electric vehicle fleet has saved approximately 45 kg of CO₂ compared to traditional vehicles. Current efficiency score is 87/100, which is 12% better than last week.";
+    if (lowerCommand.includes('route') || lowerCommand.includes('delivery')) {
+      return "I can optimize delivery routes for efficiency and sustainability. Would you like to see current routes or create new ones?";
     }
     
-    if (lowerCommand.includes('anomalies') || lowerCommand.includes('anomaly')) {
-      return "System has detected 3 anomalies in the last hour: 1 critical fraud alert involving electronics transactions, 1 high-priority inventory depletion in bread category, and 1 medium-priority spoilage alert for milk products. Immediate attention required for fraud alert.";
+    if (lowerCommand.includes('anomaly') || lowerCommand.includes('alert')) {
+      return "Let me check for any anomalies in the system. I'll scan for fraud, spoilage, and unusual patterns.";
     }
     
-    if (lowerCommand.includes('optimize') && lowerCommand.includes('routes')) {
-      return "Route optimization complete. 3 electric vehicle routes have been optimized for eco-friendly delivery. Total carbon footprint reduced by 23%. Route R001 is most efficient with 0 emissions and 8 delivery stops covering 12.5 km in 45 minutes.";
+    if (lowerCommand.includes('carbon') || lowerCommand.includes('eco')) {
+      return "I can provide sustainability metrics including carbon footprint and eco-friendly delivery options.";
     }
     
-    if (lowerCommand.includes('demand') && lowerCommand.includes('forecast')) {
-      return "AI demand forecasting shows: Bread demand will increase by 15% tomorrow, Milk demand stable, Electronics showing 25% spike due to weekend sales. Confidence levels are above 85% for all predictions. Recommend increasing bread orders by 20 units.";
-    }
-    
-    if (lowerCommand.includes('transfer') || lowerCommand.includes('negotiate')) {
-      return "Currently 3 active negotiations: Biscuits transfer from Andheri to Bandra (pending approval), Milk transfer from Malad to Andheri (approved), and T-Shirt transfer from Bandra to Malad (in transit). Total estimated cost: ₹700.";
-    }
-    
-    // Default response
-    return "I can help you with inventory management, demand forecasting, route optimization, anomaly detection, and inter-store negotiations. Try asking about specific stores, products, or system metrics.";
+    return "I'm here to help with inventory management, route optimization, anomaly detection, and inter-store coordination. What would you like to know?";
+  }
+
+  static speak(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.synthesis) {
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      this.synthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 0.8;
+
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+
+      this.synthesis.speak(utterance);
+    });
+  }
+
+  static isCurrentlyListening(): boolean {
+    return this.isListening;
+  }
+
+  static isSupported(): boolean {
+    return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
   }
 }

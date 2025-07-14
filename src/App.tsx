@@ -41,6 +41,7 @@ function App() {
     AuthService.logout();
     setUser(null);
     setShowProfile(false);
+    setIsVoiceActive(false); // Stop voice when logging out
   };
 
   // Show login screen if not authenticated
@@ -139,8 +140,9 @@ function App() {
                       ? 'bg-red-600 hover:bg-red-700' 
                       : 'bg-blue-600 hover:bg-blue-700'
                   }`}
+                  title={isVoiceActive ? 'Stop AI Voice Assistant' : 'Start AI Voice Assistant'}
                 >
-                  🎤 {isVoiceActive ? 'Stop Voice' : 'Start Voice'}
+                  🎤 {isVoiceActive ? 'Stop AI Assistant' : 'Start AI Assistant'}
                 </button>
               </div>
             </div>
