@@ -10,6 +10,7 @@ export const VoiceInterface: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState(true);
+  const [conversationActive, setConversationActive] = useState(false);
 
   useEffect(() => {
     setIsSupported(VoiceService.isSupported());
@@ -18,12 +19,28 @@ export const VoiceInterface: React.FC = () => {
     }
   }, []);
 
+  // Auto-prompt after 5 seconds of silence
+  useEffect(() => {
+    let silenceTimer: NodeJS.Timeout;
+    
+    if (conversationActive && !isListening && !isProcessing && !isSpeaking) {
+      silenceTimer = setTimeout(() => {
+        const promptMessage = "Whenever you're ready, you can ask me any Walmart shopping or website-related question.";
+        VoiceService.speak(promptMessage);
+      }, 5000);
+    }
+    
+    return () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+    };
+  }, [conversationActive, isListening, isProcessing, isSpeaking]);
   const startListening = useCallback(async () => {
     if (!isSupported) return;
     
     try {
       setError('');
       setIsListening(true);
+      setConversationActive(true);
       setTranscript('');
       setResponse('');
       
@@ -42,6 +59,13 @@ export const VoiceInterface: React.FC = () => {
       await VoiceService.speak(aiResponse);
       setIsSpeaking(false);
       
+      // Keep conversation active and auto-restart listening
+      setTimeout(() => {
+        if (conversationActive) {
+          startListening();
+        }
+      }, 1000);
+      
     } catch (err: any) {
       setIsListening(false);
       setIsProcessing(false);
@@ -53,12 +77,14 @@ export const VoiceInterface: React.FC = () => {
   const stopListening = useCallback(() => {
     VoiceService.stopListening();
     setIsListening(false);
+    setConversationActive(false);
   }, []);
 
   const clearConversation = useCallback(() => {
     setTranscript('');
     setResponse('');
     setError('');
+    setConversationActive(false);
   }, []);
 
   if (!isSupported) {
@@ -83,6 +109,9 @@ export const VoiceInterface: React.FC = () => {
           <h4 className="font-semibold">Walmart AI Assistant</h4>
         </div>
         <div className="flex space-x-2">
+          <div className={`px-2 py-1 rounded text-xs ${conversationActive ? 'bg-green-600' : 'bg-gray-600'}`}>
+            {conversationActive ? 'Active' : 'Inactive'}
+          </div>
           <button
             onClick={clearConversation}
             className="p-1 text-gray-400 hover:text-gray-300 transition-colors"
@@ -102,7 +131,7 @@ export const VoiceInterface: React.FC = () => {
                 ? 'bg-gray-600 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
-            title={isListening ? 'Stop listening' : 'Start listening'}
+            title={conversationActive ? 'Stop conversation' : 'Start conversation'}
           >
             {isProcessing || isSpeaking ? (
               <Loader className="w-4 h-4 animate-spin" />
@@ -144,7 +173,7 @@ export const VoiceInterface: React.FC = () => {
             ))}
           </div>
           <p className="text-xs text-blue-200 mt-2">
-            Try: "Check inventory for Andheri store" or "Optimize delivery routes"
+            Try: "Show me electronics in Andheri store" or "What are today's offers?"
           </p>
         </div>
       )}
@@ -190,10 +219,10 @@ export const VoiceInterface: React.FC = () => {
       {!isListening && !isProcessing && !isSpeaking && !transcript && (
         <div className="text-center">
           <div className="text-xs text-gray-400 mb-2">
-            Click the microphone to start
+            Click the microphone to start Walmart shopping assistance
           </div>
           <div className="text-xs text-gray-500">
-            Ask about inventory, routes, transfers, or anomalies
+            Ask about products, stores, offers, delivery, or website navigation
           </div>
         </div>
       )}

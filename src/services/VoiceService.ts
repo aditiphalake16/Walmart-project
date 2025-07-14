@@ -72,17 +72,6 @@ export class VoiceService {
       const systemContext = `
 You are an AI assistant for Walmart Grid Quantum, an advanced hyperlocal logistics intelligence system. You help store managers and logistics coordinators with:
 
-1. Inventory Management - Track stock levels, transfers between stores
-2. Demand Forecasting - Predict product demand using AI
-3. Route Optimization - Optimize delivery routes for efficiency and sustainability
-4. Anomaly Detection - Detect fraud, spoilage, and unusual patterns
-5. Inter-store Negotiations - Facilitate inventory transfers between stores
-6. Eco Metrics - Track carbon footprint and sustainability goals
-
-Current system data context:
-- Stores: Andheri, Bandra, Malad (Mumbai region)
-- Products: Groceries, Electronics, Clothing, Pharmacy items
-- Fleet: Electric vehicles, hybrid vehicles for eco-friendly delivery
 - Real-time monitoring of inventory levels, transfers, and anomalies
 
 Respond as a helpful logistics assistant. Keep responses concise, actionable, and focused on logistics operations. If asked about specific data, provide realistic examples based on the store context.
